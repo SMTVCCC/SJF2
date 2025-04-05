@@ -1,0 +1,30 @@
+{
+    "name": "SMT-AI智能体",
+    "short_name": "SMTAI",
+    "description": "智能AI聊天助手",
+    "start_url": "index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#ffffff",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "IOS.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "prefer_related_applications": false,
+    "related_applications": [],
+    "categories": ["productivity", "utilities"],
+    "shortcuts": [
+        {
+            "name": "新对话",
+            "short_name": "新对话",
+            "description": "开始新的AI对话",
+            "url": "index.html?action=new",
+            "icons": [{ "src": "IOS.png", "sizes": "192x192" }]
+        }
+    ]
+}

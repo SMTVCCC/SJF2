@@ -10,6 +10,11 @@ const MobileAdapter = {
         return /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     },
+    
+    // 检测是否为安卓设备
+    isAndroid() {
+        return /Android/i.test(navigator.userAgent);
+    },
 
     // 初始化移动设备适配
     init() {
@@ -19,10 +24,18 @@ const MobileAdapter = {
             this.enhanceInputBehavior();
             this.optimizeScrolling();
             
-            // 额外的iOS优化
+            // 额外的设备特定优化
             if (this.isIOS()) {
                 this.applyIOSFixes();
+            } else if (this.isAndroid()) {
+                this.applyAndroidFixes();
             }
+            
+            // 适配不同屏幕大小
+            this.adaptToScreenSize();
+            
+            // 监听屏幕方向变化
+            this.handleOrientationChange();
         }
     },
 
@@ -301,6 +314,132 @@ const MobileAdapter = {
             }
             lastTouchEnd = now;
         }, { passive: false });
+    },
+
+    // 应用安卓设备特定修复
+    applyAndroidFixes() {
+        const messageInput = document.getElementById('messageInput');
+        const chatMessages = document.querySelector('.chat-messages');
+        const inputArea = document.querySelector('.input-area');
+        
+        if (!messageInput || !chatMessages || !inputArea) return;
+        
+        // 安卓键盘弹出时处理
+        let initialWindowHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+            // 当窗口高度减小时，可能是键盘弹出
+            if (window.innerHeight < initialWindowHeight) {
+                if (document.activeElement === messageInput) {
+                    document.body.classList.add('keyboard-visible');
+                    document.body.classList.add('android-keyboard-open');
+                    
+                    // 动态调整聊天区域高度，为键盘腾出空间
+                    const keyboardHeight = initialWindowHeight - window.innerHeight;
+                    chatMessages.style.height = `calc(100vh - ${keyboardHeight + inputArea.offsetHeight + 20}px)`;
+                    
+                    // 确保输入框可见
+                    setTimeout(() => {
+                        messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+            } else {
+                // 键盘收起时恢复布局
+                document.body.classList.remove('keyboard-visible');
+                document.body.classList.remove('android-keyboard-open');
+                chatMessages.style.height = '';
+                initialWindowHeight = window.innerHeight;
+            }
+        });
+        
+        // 修复安卓浏览器中的输入框高度计算问题
+        messageInput.addEventListener('input', function() {
+            // 强制重新计算高度
+            setTimeout(() => {
+                this.style.height = 'auto';
+                this.style.height = Math.min(120, this.scrollHeight) + 'px';
+            }, 0);
+        });
+        
+        // 修复安卓Chrome中的底部导航栏问题
+        document.documentElement.style.setProperty('--real-viewport-height', `${window.innerHeight}px`);
+    },
+    
+    // 适配不同屏幕大小
+    adaptToScreenSize() {
+        // 获取设备屏幕信息
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        const pixelRatio = window.devicePixelRatio || 1;
+        
+        // 添加表示屏幕大小类的CSS类
+        document.body.classList.remove('tiny-screen', 'small-screen', 'medium-screen', 'large-screen');
+        
+        if (screenWidth < 320) {
+            document.body.classList.add('tiny-screen');
+        } else if (screenWidth < 375) {
+            document.body.classList.add('small-screen');
+        } else if (screenWidth < 768) {
+            document.body.classList.add('medium-screen');
+        } else {
+            document.body.classList.add('large-screen');
+        }
+        
+        // 为高DPI屏幕添加类
+        if (pixelRatio >= 3) {
+            document.body.classList.add('high-dpi');
+        } else if (pixelRatio >= 2) {
+            document.body.classList.add('medium-dpi');
+        }
+        
+        // 设置CSS变量以便在样式中使用
+        document.documentElement.style.setProperty('--screen-width', `${screenWidth}px`);
+        document.documentElement.style.setProperty('--screen-height', `${screenHeight}px`);
+        document.documentElement.style.setProperty('--device-pixel-ratio', pixelRatio);
+        document.documentElement.style.setProperty('--safe-area-inset-top', '0px');
+        document.documentElement.style.setProperty('--safe-area-inset-bottom', '0px');
+        
+        // 支持设备安全区域
+        if (this.isIOS()) {
+            // iOS 安全区域
+            document.documentElement.style.setProperty('--safe-area-inset-top', 'env(safe-area-inset-top, 0px)');
+            document.documentElement.style.setProperty('--safe-area-inset-bottom', 'env(safe-area-inset-bottom, 0px)');
+        } else if (this.isAndroid()) {
+            // 安卓设备上，底部安全区域为导航栏高度（估计值）
+            const navbarHeight = Math.max(0, window.outerHeight - window.innerHeight);
+            document.documentElement.style.setProperty('--safe-area-inset-bottom', `${navbarHeight}px`);
+        }
+    },
+    
+    // 处理屏幕方向变化
+    handleOrientationChange() {
+        const updateLayout = () => {
+            // 重新计算布局尺寸
+            this.adaptToScreenSize();
+            
+            // 更新视口高度变量
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            
+            // 根据方向调整聊天区域
+            if (window.matchMedia("(orientation: portrait)").matches) {
+                document.body.classList.add('portrait');
+                document.body.classList.remove('landscape');
+            } else {
+                document.body.classList.add('landscape');
+                document.body.classList.remove('portrait');
+            }
+        };
+        
+        // 初始设置
+        updateLayout();
+        
+        // 监听方向变化和调整大小事件
+        window.addEventListener('orientationchange', updateLayout);
+        window.addEventListener('resize', () => {
+            // 使用防抖函数避免频繁触发
+            clearTimeout(this.resizeTimer);
+            this.resizeTimer = setTimeout(updateLayout, 100);
+        });
     },
 
     // 优化滚动体验
