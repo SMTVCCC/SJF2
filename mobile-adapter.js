@@ -261,44 +261,206 @@ const MobileAdapter = {
         const messageInput = document.getElementById('messageInput');
         const chatMessages = document.querySelector('.chat-messages');
         const inputArea = document.querySelector('.input-area');
+        const keyboardHelper = document.getElementById('keyboard-helper');
         
         if (!messageInput || !chatMessages || !inputArea) return;
+        
+        // 记录原始视口高度
+        let originalViewportHeight = window.innerHeight;
+        
+        // 创建iOS键盘管理器
+        const iOSKeyboardManager = {
+            isKeyboardVisible: false,
+            keyboardHeight: 0,
+            
+            // 检测键盘状态
+            detectKeyboard() {
+                const newViewportHeight = window.innerHeight;
+                
+                // 如果高度减小，认为键盘弹出
+                if (newViewportHeight < originalViewportHeight && document.activeElement === messageInput) {
+                    this.keyboardHeight = originalViewportHeight - newViewportHeight;
+                    if (!this.isKeyboardVisible) {
+                        this.keyboardDidShow();
+                    }
+                    this.isKeyboardVisible = true;
+                } 
+                // 如果高度恢复，认为键盘收起
+                else if (this.isKeyboardVisible && newViewportHeight >= originalViewportHeight) {
+                    this.keyboardDidHide();
+                    this.isKeyboardVisible = false;
+                    originalViewportHeight = newViewportHeight;
+                }
+            },
+            
+            // 键盘显示时的处理
+            keyboardDidShow() {
+                console.log('[iOS] 键盘显示, 高度:', this.keyboardHeight);
+                
+                // 添加键盘可见标记类
+                document.body.classList.add('keyboard-visible');
+                document.body.classList.add('ios-keyboard-open');
+                
+                // 固定输入区域在视口底部
+                inputArea.style.position = 'fixed';
+                inputArea.style.bottom = '0';
+                inputArea.style.left = '0';
+                inputArea.style.right = '0';
+                inputArea.style.width = '100%';
+                inputArea.style.zIndex = '1000';
+                
+                // 调整聊天区域高度，为键盘腾出空间
+                chatMessages.style.height = `calc(100% - ${this.keyboardHeight + inputArea.offsetHeight}px)`;
+                chatMessages.style.paddingBottom = '60px';
+                
+                // 确保输入区域可见
+                setTimeout(() => {
+                    messageInput.scrollIntoView({block: 'end', behavior: 'smooth'});
+                    // 滚动到页面底部
+                    window.scrollTo(0, 0);
+                }, 100);
+            },
+            
+            // 键盘隐藏时的处理
+            keyboardDidHide() {
+                console.log('[iOS] 键盘隐藏');
+                
+                // 移除键盘可见标记类
+                document.body.classList.remove('keyboard-visible');
+                document.body.classList.remove('ios-keyboard-open');
+                
+                // 恢复原始样式
+                inputArea.style.position = '';
+                inputArea.style.bottom = '';
+                inputArea.style.left = '';
+                inputArea.style.right = '';
+                inputArea.style.width = '';
+                inputArea.style.zIndex = '';
+                
+                // 恢复聊天区域高度
+                chatMessages.style.height = '';
+                chatMessages.style.paddingBottom = '';
+                
+                // 重置键盘高度
+                this.keyboardHeight = 0;
+                
+                // 滚动到最新消息
+                setTimeout(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 100);
+            }
+        };
         
         // 使用VisualViewport API (如果支持)
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', () => {
-                const currentHeight = window.visualViewport.height;
+                // 记录视口变化
+                const viewportHeight = window.visualViewport.height;
+                const viewportWidth = window.visualViewport.width;
+                const viewportOffsetTop = window.visualViewport.offsetTop;
                 
-                // 键盘弹出时，调整聊天区域和输入区域
+                // 仅当输入框获得焦点时处理键盘事件
                 if (document.activeElement === messageInput) {
-                    // 设置输入区域位置
-                    inputArea.style.position = 'fixed';
-                    inputArea.style.bottom = `${window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop}px`;
-                    inputArea.style.left = '0';
-                    inputArea.style.right = '0';
-                    inputArea.style.width = '100%';
+                    console.log('[iOS] 视口变化', viewportHeight, originalViewportHeight);
                     
-                    // 调整聊天区域高度
-                    chatMessages.style.height = `${currentHeight - inputArea.offsetHeight}px`;
-                    
-                    // 滚动到输入区域
-                    setTimeout(() => {
-                        messageInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    }, 100);
+                    // 通过视口高度变化判断键盘是否弹出
+                    if (viewportHeight < originalViewportHeight - 100) {  // 100px阈值，避免误判
+                        // 键盘弹出
+                        document.body.classList.add('keyboard-visible');
+                        document.body.classList.add('ios-keyboard-open');
+                        
+                        // 固定输入区域在视口底部
+                        inputArea.style.position = 'fixed';
+                        inputArea.style.bottom = `${window.innerHeight - viewportHeight - viewportOffsetTop}px`;
+                        inputArea.style.left = '0';
+                        inputArea.style.right = '0';
+                        inputArea.style.width = '100%';
+                        inputArea.style.zIndex = '1000';
+                        
+                        // 避免内容被键盘遮挡
+                        const keyboardHeight = originalViewportHeight - viewportHeight;
+                        chatMessages.style.height = `${viewportHeight - inputArea.offsetHeight}px`;
+                        chatMessages.style.paddingBottom = '60px';
+                        
+                        // 确保消息和输入框可见
+                        setTimeout(() => {
+                            messageInput.scrollIntoView({block: 'end', behavior: 'smooth'});
+                        }, 50);
+                    }
                 }
             });
             
+            // 监听视口滚动
             window.visualViewport.addEventListener('scroll', () => {
-                if (document.activeElement === messageInput) {
-                    // 更新输入区域的位置以跟随视口滚动
+                if (document.activeElement === messageInput && window.visualViewport.height < originalViewportHeight - 100) {
                     inputArea.style.bottom = `${window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop}px`;
                 }
             });
         }
         
+        // 强化输入框焦点处理
+        messageInput.addEventListener('focus', function() {
+            console.log('[iOS] 输入框获得焦点');
+            
+            // 使用iOS键盘辅助元素
+            if (keyboardHelper) {
+                // 避免iOS Safari的自动滚动行为
+                setTimeout(() => {
+                    // 聚焦辅助元素再聚焦回输入框，可以触发更一致的键盘行为
+                    keyboardHelper.focus();
+                    setTimeout(() => {
+                        messageInput.focus();
+                        
+                        // 再次尝试滚动确保可见
+                        setTimeout(() => {
+                            // 微调滚动以确保输入框可见
+                            messageInput.scrollIntoView({block: 'end', behavior: 'smooth'});
+                            window.scrollTo(0, 0);
+                        }, 300);
+                    }, 50);
+                }, 100);
+            }
+            
+            // 添加键盘可见标记类
+            document.body.classList.add('keyboard-visible');
+            document.body.classList.add('ios-keyboard-open');
+            
+            // 调整输入区域样式以确保它在键盘上方
+            inputArea.style.position = 'fixed';
+            inputArea.style.bottom = '0';
+            inputArea.style.left = '0';
+            inputArea.style.right = '0';
+            inputArea.style.zIndex = '1000';
+            
+            // 延迟执行，等待键盘完全显示
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 500);
+        });
+        
+        // 监听输入框失去焦点
+        messageInput.addEventListener('blur', function() {
+            console.log('[iOS] 输入框失去焦点');
+            
+            // 短暂延迟然后移除样式
+            setTimeout(() => {
+                document.body.classList.remove('keyboard-visible');
+                document.body.classList.remove('ios-keyboard-open');
+                
+                inputArea.style.position = '';
+                inputArea.style.bottom = '';
+                inputArea.style.left = '';
+                inputArea.style.right = '';
+                inputArea.style.zIndex = '';
+                
+                chatMessages.style.height = '';
+                chatMessages.style.paddingBottom = '';
+            }, 100);
+        });
+        
         // 防止页面回弹效果
         document.addEventListener('touchmove', function(e) {
-            if (document.body.classList.contains('keyboard-visible')) {
+            if (document.body.classList.contains('ios-keyboard-open')) {
                 if (e.target !== messageInput && !inputArea.contains(e.target)) {
                     e.preventDefault();
                 }
@@ -314,6 +476,22 @@ const MobileAdapter = {
             }
             lastTouchEnd = now;
         }, { passive: false });
+        
+        // 监听窗口大小变化以检测键盘
+        window.addEventListener('resize', () => {
+            // 延迟执行，确保视口已更新
+            setTimeout(() => {
+                iOSKeyboardManager.detectKeyboard();
+            }, 50);
+        });
+        
+        // 监听输入时自动调整
+        messageInput.addEventListener('input', function() {
+            if (iOSKeyboardManager.isKeyboardVisible) {
+                // 确保在输入文本时输入框可见
+                this.scrollIntoView({block: 'end', behavior: 'smooth'});
+            }
+        });
     },
 
     // 应用安卓设备特定修复

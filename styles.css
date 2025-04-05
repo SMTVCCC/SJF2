@@ -1649,6 +1649,36 @@ body {
     transition: opacity 0.2s;
 }
 
+/* iOS键盘特定样式 */
+.ios-keyboard-open .input-area {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 1001 !important; /* 高于其他元素 */
+    background-color: white !important;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1) !important;
+    transform: translateZ(0); /* 激活硬件加速 */
+    will-change: transform; /* 提示浏览器此元素会变化 */
+    transition: none !important; /* 禁用过渡，提高响应速度 */
+}
+
+.ios-keyboard-open .chat-messages {
+    transition: height 0.15s ease-out !important;
+    -webkit-overflow-scrolling: touch !important;
+    overflow-scrolling: touch !important;
+}
+
+.ios-keyboard-open #messageInput {
+    font-size: 16px !important; /* 确保iOS上不会缩放 */
+}
+
+/* 确保最后一条消息在键盘弹出时可见 */
+.ios-keyboard-open .message:last-child {
+    margin-bottom: 20px !important;
+}
+
 /* 安卓特定样式 */
 .android-keyboard-open .input-area {
     position: fixed;
@@ -1657,10 +1687,6 @@ body {
     right: 0;
     z-index: 1000;
     transition: none; /* 安卓上禁用过渡以提高响应速度 */
-}
-
-.android-keyboard-open .chat-messages {
-    padding-bottom: 120px; /* 安卓上减少底部填充，避免滚动问题 */
 }
 
 /* 屏幕大小响应式调整 */
@@ -1716,6 +1742,16 @@ body {
         padding-bottom: calc(8px + env(safe-area-inset-bottom));
     }
     
+    /* iOS键盘打开时的特殊处理 */
+    .ios-keyboard-open .input-area {
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+        /* 在iOS上启用硬件加速，避免闪烁 */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+    
     /* 处理iPhone X及以上机型底部安全区域 */
     @supports (padding: max(0px)) {
         .input-area {
@@ -1735,6 +1771,18 @@ body {
     /* 改善iOS虚拟键盘弹出时的体验 */
     .keyboard-visible .chat-container {
         height: 100%; /* 使用百分比高度，便于布局调整 */
+    }
+    
+    /* 由于iOS键盘弹出方式的特殊性，增加额外处理 */
+    .ios-keyboard-open .chat-container {
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+    
+    /* 确保内容不被键盘遮挡 */
+    .ios-keyboard-open .chat-messages {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
     }
 }
 

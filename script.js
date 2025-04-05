@@ -70,14 +70,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (document.activeElement === messageInput) {
                 // 使用键盘辅助元素在iOS上改善键盘行为
                 if (isIOS && keyboardHelper) {
-                    // 将焦点暂时移动到辅助元素再回到输入框，可以触发更好的键盘行为
+                    // 延迟处理，等待键盘完全显示
                     setTimeout(() => {
-                        keyboardHelper.focus();
+                        // 滚动到视口顶部，帮助固定输入框
+                        window.scrollTo(0, 0);
+                        
+                        // 对于iOS 15+使用更可靠的视口底部计算
+                        if (window.visualViewport) {
+                            const inputArea = document.querySelector('.input-area');
+                            if (inputArea) {
+                                // 使用视口API精确定位输入区域
+                                const bottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+                                if (bottom > 0) {
+                                    inputArea.style.bottom = `${bottom}px`;
+                                }
+                            }
+                        }
+                        
+                        // 确保聊天消息滚动到最新
                         setTimeout(() => {
-                            messageInput.focus();
-                            // 确保滚动到底部
-                            window.scrollTo(0, document.body.scrollHeight);
-                        }, 50);
+                            if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }, 100);
                     }, 300);
                 } else {
                     // 非iOS设备上的常规处理
@@ -92,16 +105,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const fixIOSKeyboard = () => {
                 // 添加一个小延迟
                 setTimeout(() => {
-                    window.scrollTo(0, document.body.scrollHeight);
+                    // 防止页面上滚，固定在顶部
+                    window.scrollTo(0, 0);
+                    
                     // 确保iOS上正确显示键盘
                     if (window.visualViewport) {
                         const viewportHeight = window.visualViewport.height;
                         // 调整输入区域的位置
                         const inputArea = document.querySelector('.input-area');
                         if (inputArea) {
-                            inputArea.style.bottom = `${window.innerHeight - viewportHeight - window.visualViewport.offsetTop}px`;
+                            const bottom = window.innerHeight - viewportHeight - window.visualViewport.offsetTop;
+                            if (bottom > 0) {
+                                inputArea.style.bottom = `${bottom}px`;
+                            }
                         }
                     }
+                    
+                    // iOS上特别标记主体
+                    document.body.classList.add('ios-keyboard-open');
+                    
+                    // 确保聊天内容滚动到底部
+                    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
                 }, 100);
             };
             
@@ -109,10 +133,33 @@ document.addEventListener('DOMContentLoaded', function() {
             messageInput.addEventListener('focus', fixIOSKeyboard);
             messageInput.addEventListener('click', fixIOSKeyboard);
             
-            // 确保点击发送按钮后不会立即隐藏键盘
-            sendButton.addEventListener('touchstart', function(e) {
-                e.preventDefault(); // 防止触发失焦
-                handleSendMessage(); // 直接调用发送函数
+            // 确保点击发送按钮后输入框保持可见
+            if (sendButton) {
+                // 阻止默认行为，保留焦点
+                sendButton.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    
+                    // 获取当前输入值
+                    const message = messageInput.value.trim();
+                    if (message) {
+                        // 手动调用发送函数
+                        handleSendMessage();
+                        
+                        // 短暂延迟后恢复焦点，确保键盘保持开启状态
+                        setTimeout(() => {
+                            messageInput.focus();
+                            // 再次触发输入框调整
+                            fixIOSKeyboard();
+                        }, 50);
+                    }
+                });
+            }
+            
+            // 修复发送后iOS中的闪烁问题
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && document.body.classList.contains('ios-keyboard-open')) {
+                    setTimeout(fixIOSKeyboard, 100);
+                }
             });
         }
     }
@@ -538,7 +585,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 messageInput.value = '';
                 messageInput.style.borderColor = '#ccc';
                 messageInput.style.borderWidth = '1px';
-                messageInput.focus();
+                
+                // 对于iOS设备，始终保持焦点
+                if (isIOS) {
+                    setTimeout(() => {
+                        messageInput.focus();
+                    }, 50);
+                } else {
+                    messageInput.focus();
+                }
                 
                 // 添加AI的快速回复
                 const aiMessage = document.createElement('div');
@@ -562,14 +617,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 messageInput.value = '';
                 messageInput.style.borderColor = '#ccc';
                 messageInput.style.borderWidth = '1px';
-                messageInput.focus();
+                
+                // 对于iOS设备，始终保持焦点
+                if (isIOS) {
+                    setTimeout(() => {
+                        messageInput.focus();
+                    }, 50);
+                } else {
+                    messageInput.focus();
+                }
             }
         } else {
             console.log('[调试] 消息为空，不发送');
         }
     }
 
-    // 为发送按钮添加点击事件（使用箭头函数以保持this的指向）
+    // 为发送按钮添加点击事件
     if (sendButton) {
         sendButton.onclick = (event) => {
             console.log('[调试] 发送按钮被点击');
