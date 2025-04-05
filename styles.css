@@ -1553,127 +1553,131 @@ body {
 
 /* 移动端优化样式 - 完全重写 */
 @media (max-width: 768px) {
-    /* 隐藏侧边栏 */
     .sidebar {
         display: none !important;
     }
-    
-    /* 主内容区域占满整个屏幕 */
     .main-content {
-        width: 100% !important;
-        margin-left: 0 !important;
+        margin-left: 0;
+        width: 100%;
         height: 100vh;
         display: flex;
         flex-direction: column;
     }
-    
-    /* 聊天消息区域占满更多空间 */
     .chat-messages {
         flex: 1;
-        padding: 10px !important;
+        height: calc(100vh - 150px);
         overflow-y: auto;
     }
-    
-    /* 适应手机屏幕的消息气泡 */
     .message {
-        max-width: 90% !important;
-        margin: 8px !important;
+        max-width: 90%;
     }
-    
     .message-content {
-        padding: 12px !important;
-        font-size: 14px !important;
+        padding: 12px 15px;
     }
-    
-    /* 输入区域优化 */
     .input-area {
-        padding: 12px !important;
         position: sticky;
         bottom: 0;
-        background: #fff;
-        z-index: 10;
+        padding: 10px;
+        z-index: 100;
+        background: white;
+        border-top: 1px solid rgba(0,0,0,0.1);
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     }
-    
     .input-container {
-        padding: 10px !important;
-        border-radius: 18px !important;
+        margin-bottom: 0;
     }
-    
-    /* 确保输入框正常显示 */
     #messageInput {
-        font-size: 16px !important; /* 防止iOS自动缩放 */
-        min-height: 20px !important;
-        max-height: 120px !important;
-        overflow-y: auto;
+        font-size: 16px !important; /* iOS上防止缩放 */
+        padding: 2px 0;
     }
-    
-    /* 底部按钮区域优化 */
     .bottom-buttons {
         flex-wrap: wrap;
-        gap: 8px;
-        justify-content: space-between;
+        gap: 6px;
     }
-    
-    /* 模型按钮样式优化 */
     .model-button {
-        font-size: 12px !important;
-        padding: 6px 10px !important;
-        min-width: auto !important;
+        font-size: 12px;
+        padding: 5px 8px;
     }
-    
-    /* 发送按钮优化 */
     .send-button {
-        width: 44px !important;
-        height: 44px !important;
+        transform: scale(1.1);
     }
-    
-    /* 完全隐藏快捷功能区 */
     .quick-actions {
-        display: none !important;
+        display: none;
     }
-    
-    /* 代码块样式优化 */
     .code-block {
-        margin: 8px 0 !important;
-        border-radius: 8px !important;
-        max-width: 100% !important;
+        max-width: 100%;
         overflow-x: auto;
     }
-    
     .code-block pre {
-        font-size: 12px !important;
-        padding: 8px !important;
+        font-size: 12px;
     }
-    
-    /* 思考时间提示优化 */
     .thinking-time {
-        bottom: 70px !important;
-        right: 10px !important;
-        font-size: 11px !important;
+        bottom: 70px;
     }
-    
-    /* 对话界面优化 */
     .chat-container {
-        flex-direction: column;
-        height: 100vh;
+        height: 100svh; /* 使用svh单位，考虑移动设备视口 */
         overflow: hidden;
     }
 }
 
-/* 更小屏幕的额外优化 */
-@media (max-width: 480px) {
-    .message {
-        max-width: 95% !important;
-    }
-    
-    .model-button {
-        padding: 5px 8px !important;
-        font-size: 11px !important;
+/* 键盘激活时的样式 */
+.keyboard-visible .input-area {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    z-index: 1000;
+    padding: 8px 10px;
+    box-shadow: 0 -3px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.keyboard-visible .chat-messages {
+    height: calc(100vh - 200px);
+    padding-bottom: 150px;
+    -webkit-overflow-scrolling: touch; /* 增加惯性滚动 */
+}
+
+.keyboard-visible .message {
+    transition: opacity 0.2s;
+}
+
+/* iOS虚拟键盘适配 */
+@supports (-webkit-touch-callout: none) {
+    body {
+        /* 防止iOS橡皮筋效果 */
+        overscroll-behavior-y: none;
+        -webkit-overflow-scrolling: touch;
     }
     
     .input-area {
-        padding: 8px !important;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+    
+    .keyboard-visible .input-area {
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+    
+    /* 处理iPhone X及以上机型底部安全区域 */
+    @supports (padding: max(0px)) {
+        .input-area {
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+        
+        .keyboard-visible .input-area {
+            padding-bottom: max(8px, env(safe-area-inset-bottom));
+        }
+    }
+    
+    /* 修复iOS 固定定位问题 */
+    .chat-container {
+        height: -webkit-fill-available; /* 修复Safari高度计算问题 */
+    }
+    
+    /* 改善iOS虚拟键盘弹出时的体验 */
+    .keyboard-visible .chat-container {
+        height: 100%; /* 使用百分比高度，便于布局调整 */
     }
 }
 

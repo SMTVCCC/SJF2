@@ -5,6 +5,12 @@ const MobileAdapter = {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     },
 
+    // 检测是否为iOS设备
+    isIOS() {
+        return /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    },
+
     // 初始化移动设备适配
     init() {
         if (this.isMobile()) {
@@ -12,6 +18,11 @@ const MobileAdapter = {
             this.setupMobileLayout();
             this.enhanceInputBehavior();
             this.optimizeScrolling();
+            
+            // 额外的iOS优化
+            if (this.isIOS()) {
+                this.applyIOSFixes();
+            }
         }
     },
 
@@ -169,7 +180,9 @@ const MobileAdapter = {
     // 增强输入框行为
     enhanceInputBehavior() {
         const messageInput = document.getElementById('messageInput');
-        if (!messageInput) return;
+        const inputArea = document.querySelector('.input-area');
+        const chatContainer = document.querySelector('.chat-container');
+        if (!messageInput || !inputArea) return;
 
         // 自动调整文本区域高度
         messageInput.addEventListener('input', function() {
@@ -177,8 +190,18 @@ const MobileAdapter = {
             this.style.height = Math.min(120, this.scrollHeight) + 'px';
         });
 
-        // 防止输入框获取焦点时页面弹跳
+        // 优化输入框获取焦点时的行为
         messageInput.addEventListener('focus', function() {
+            // 添加可见性类
+            document.body.classList.add('keyboard-visible');
+            
+            // 将输入区域固定在可视区域底部
+            inputArea.style.position = 'fixed';
+            inputArea.style.bottom = '0';
+            inputArea.style.left = '0';
+            inputArea.style.right = '0';
+            inputArea.style.zIndex = '1000';
+            
             // 延迟执行，等待键盘显示
             setTimeout(() => {
                 // 滚动到页面底部
@@ -188,6 +211,96 @@ const MobileAdapter = {
                 this.scrollIntoView({ behavior: 'smooth', block: 'end' });
             }, 300);
         });
+
+        // 输入框失去焦点恢复原样式
+        messageInput.addEventListener('blur', function() {
+            // 移除可见性类
+            document.body.classList.remove('keyboard-visible');
+            
+            // 恢复原来的样式
+            setTimeout(() => {
+                inputArea.style.position = '';
+                inputArea.style.bottom = '';
+                inputArea.style.left = '';
+                inputArea.style.right = '';
+            }, 100);
+        });
+        
+        // 监听iOS虚拟键盘事件
+        let viewportHeight = window.innerHeight;
+        window.addEventListener('resize', () => {
+            // 如果高度变小，说明键盘弹出
+            if (window.innerHeight < viewportHeight) {
+                // 键盘弹出，确保输入框在视图中
+                setTimeout(() => {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    messageInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }, 100);
+            } else {
+                // 键盘隐藏，重置视口高度
+                viewportHeight = window.innerHeight;
+            }
+        });
+    },
+
+    // 应用iOS特定修复
+    applyIOSFixes() {
+        const messageInput = document.getElementById('messageInput');
+        const chatMessages = document.querySelector('.chat-messages');
+        const inputArea = document.querySelector('.input-area');
+        
+        if (!messageInput || !chatMessages || !inputArea) return;
+        
+        // 使用VisualViewport API (如果支持)
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => {
+                const currentHeight = window.visualViewport.height;
+                
+                // 键盘弹出时，调整聊天区域和输入区域
+                if (document.activeElement === messageInput) {
+                    // 设置输入区域位置
+                    inputArea.style.position = 'fixed';
+                    inputArea.style.bottom = `${window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop}px`;
+                    inputArea.style.left = '0';
+                    inputArea.style.right = '0';
+                    inputArea.style.width = '100%';
+                    
+                    // 调整聊天区域高度
+                    chatMessages.style.height = `${currentHeight - inputArea.offsetHeight}px`;
+                    
+                    // 滚动到输入区域
+                    setTimeout(() => {
+                        messageInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }, 100);
+                }
+            });
+            
+            window.visualViewport.addEventListener('scroll', () => {
+                if (document.activeElement === messageInput) {
+                    // 更新输入区域的位置以跟随视口滚动
+                    inputArea.style.bottom = `${window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop}px`;
+                }
+            });
+        }
+        
+        // 防止页面回弹效果
+        document.addEventListener('touchmove', function(e) {
+            if (document.body.classList.contains('keyboard-visible')) {
+                if (e.target !== messageInput && !inputArea.contains(e.target)) {
+                    e.preventDefault();
+                }
+            }
+        }, { passive: false });
+        
+        // 修复iOS的双击缩放问题
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = Date.now();
+            if (now - lastTouchEnd < 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
     },
 
     // 优化滚动体验

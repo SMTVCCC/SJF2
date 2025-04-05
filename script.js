@@ -27,6 +27,93 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.style.height = 'auto';
                 this.style.height = Math.min(120, this.scrollHeight) + 'px';
             });
+            
+            // 确保输入框始终可见
+            messageInput.addEventListener('focus', function() {
+                // 延迟执行，确保键盘已完全弹出
+                setTimeout(() => {
+                    // 滚动到输入框
+                    this.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // 添加一个可见性类，便于样式调整
+                    document.body.classList.add('keyboard-visible');
+                }, 300);
+            });
+            
+            messageInput.addEventListener('blur', function() {
+                document.body.classList.remove('keyboard-visible');
+            });
+        }
+        
+        // 监听窗口大小变化（键盘弹出/收起）
+        let viewportHeight = window.innerHeight;
+        window.addEventListener('resize', function() {
+            if (document.activeElement === messageInput) {
+                if (window.innerHeight < viewportHeight) {
+                    // 键盘弹出
+                    messageInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            // 更新视口高度
+            viewportHeight = window.innerHeight;
+        });
+
+        // 判断是否为iOS设备
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                      
+        // 获取键盘辅助元素
+        const keyboardHelper = document.getElementById('keyboard-helper');
+        
+        // 处理软键盘弹出时的滚动
+        window.addEventListener('resize', function() {
+            if (document.activeElement === messageInput) {
+                // 使用键盘辅助元素在iOS上改善键盘行为
+                if (isIOS && keyboardHelper) {
+                    // 将焦点暂时移动到辅助元素再回到输入框，可以触发更好的键盘行为
+                    setTimeout(() => {
+                        keyboardHelper.focus();
+                        setTimeout(() => {
+                            messageInput.focus();
+                            // 确保滚动到底部
+                            window.scrollTo(0, document.body.scrollHeight);
+                        }, 50);
+                    }, 300);
+                } else {
+                    // 非iOS设备上的常规处理
+                    window.scrollTo(0, document.body.scrollHeight);
+                }
+            }
+        });
+        
+        // 防止iOS虚拟键盘的问题
+        if (isIOS) {
+            // 始终使用键盘事件和焦点处理
+            const fixIOSKeyboard = () => {
+                // 添加一个小延迟
+                setTimeout(() => {
+                    window.scrollTo(0, document.body.scrollHeight);
+                    // 确保iOS上正确显示键盘
+                    if (window.visualViewport) {
+                        const viewportHeight = window.visualViewport.height;
+                        // 调整输入区域的位置
+                        const inputArea = document.querySelector('.input-area');
+                        if (inputArea) {
+                            inputArea.style.bottom = `${window.innerHeight - viewportHeight - window.visualViewport.offsetTop}px`;
+                        }
+                    }
+                }, 100);
+            };
+            
+            // 添加相关事件监听
+            messageInput.addEventListener('focus', fixIOSKeyboard);
+            messageInput.addEventListener('click', fixIOSKeyboard);
+            
+            // 确保点击发送按钮后不会立即隐藏键盘
+            sendButton.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // 防止触发失焦
+                handleSendMessage(); // 直接调用发送函数
+            });
         }
     }
 
@@ -834,14 +921,4 @@ document.addEventListener('DOMContentLoaded', function() {
     // 监听DOM变化，自动滚动到底部
     const observer = new MutationObserver(scrollToBottom);
     observer.observe(chatMessages, { childList: true, subtree: true });
-
-    // 处理移动设备上的一些特殊情况
-    if (isMobile) {
-        // 处理软键盘弹出时的滚动
-        window.addEventListener('resize', function() {
-            if (document.activeElement === messageInput) {
-                window.scrollTo(0, document.body.scrollHeight);
-            }
-        });
-    }
 });
