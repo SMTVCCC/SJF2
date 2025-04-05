@@ -353,6 +353,77 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // 深度思考模式的思考提示信息数组
+    const thinkingPrompts = [
+        { text: "正在全网搜集信息", emoji: "ℹ️" },
+        { text: "正在深度分析理解", emoji: "🧐" },
+        { text: "正在逻辑推理验证", emoji: "🔍" },
+        { text: "正在整合多方观点", emoji: "🔄" },
+        { text: "正在思考最佳方案", emoji: "💭" },
+        { text: "正在优化表达方式", emoji: "✏️" },
+        { text: "正在检查事实准确性", emoji: "✅" },
+        { text: "正在生成创意观点", emoji: "💡" },
+        { text: "正在组织清晰结构", emoji: "📝" },
+        { text: "正在准备全面回答", emoji: "📊" }
+    ];
+    
+    // 当前使用的思考提示索引
+    let currentThinkingPromptIndex = 0;
+    
+    // 显示思考中提示并定期切换
+    function showThinkingMessage() {
+        // 移除之前的思考消息
+        const existingThinkingMessage = document.querySelector('.ai-thinking-message');
+        if (existingThinkingMessage) {
+            existingThinkingMessage.remove();
+        }
+        
+        // 创建新的思考消息
+        const thinkingMessage = document.createElement('div');
+        thinkingMessage.className = 'message ai-message ai-thinking-message';
+        
+        // 获取当前提示信息
+        const prompt = thinkingPrompts[currentThinkingPromptIndex];
+        
+        thinkingMessage.innerHTML = `
+            <div class="message-content">
+                <p>${prompt.text}<span class="thinking-emoji">${prompt.emoji}</span><span class="thinking-dots"></span></p>
+            </div>
+        `;
+        
+        chatMessages.appendChild(thinkingMessage);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // 更新索引为下一个提示
+        currentThinkingPromptIndex = (currentThinkingPromptIndex + 1) % thinkingPrompts.length;
+    }
+    
+    // 创建切换思考提示的定时器
+    let thinkingInterval = null;
+    
+    // 开始显示思考动态消息
+    function startThinkingAnimation() {
+        // 初始显示
+        showThinkingMessage();
+        
+        // 设置定时器，每3秒切换一次提示
+        thinkingInterval = setInterval(showThinkingMessage, 3000);
+    }
+    
+    // 停止思考动画
+    function stopThinkingAnimation() {
+        if (thinkingInterval) {
+            clearInterval(thinkingInterval);
+            thinkingInterval = null;
+        }
+        
+        // 移除思考消息
+        const thinkingMessage = document.querySelector('.ai-thinking-message');
+        if (thinkingMessage) {
+            thinkingMessage.remove();
+        }
+    }
+
     // 发送消息的统一处理函数
     function handleSendMessage(event) {
         // 阻止默认行为
@@ -501,71 +572,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
-    // 添加AI回复内容替换功能
-    function replaceAIResponse(text) {
-        // 处理代码块，保持代码格式和换行
-        const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-        let formattedText = text.replace(codeBlockRegex, (match, language, code) => {
-            // 对代码内容进行HTML转义
-            const escapedCode = code.trim()
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-            return `<div class="code-block">
-                <div class="code-header">
-                    <span class="code-language">${language || 'plaintext'}</span>
-                    <button class="copy-button" onclick="copyCode(this)">复制代码</button>
-                </div>
-                <pre><code class="${language}">${escapedCode}</code></pre>
-            </div>`;
-        });
-        
-        // 处理普通文本的换行
-        formattedText = formattedText.replace(/\n/g, '<br>');
-        
-        // 处理加粗文本
-        formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        return formattedText;
-    }
-
-    // 显示思考时间
-    function showThinkingTime(milliseconds) {
-        const seconds = (milliseconds / 1000).toFixed(2);
-        const lastMessage = chatMessages.lastElementChild;
-        if (lastMessage && lastMessage.classList.contains('ai-message')) {
-            const prevTimeDisplay = document.querySelector('.thinking-duration');
-            if (prevTimeDisplay) prevTimeDisplay.remove();
-            const timeDisplay = document.createElement('div');
-            timeDisplay.className = 'thinking-duration';
-            timeDisplay.textContent = `思考用时：${seconds}秒`;
-            timeDisplay.style.cssText = `
-                color: #999;
-                font-size: 12px;
-                text-align: left;
-                padding-left: 20px;
-                margin-top: 5px;
-                margin-bottom: 10px;
-                opacity: 0.7;
-                display: block;
-                width: 100%;
-            `;
-            lastMessage.parentNode.insertBefore(timeDisplay, lastMessage.nextSibling);
-        }
-    }
-
     // 使用 fetch API 流式获取 AI 回复
     async function getAIResponse(userInput) {
-        const tempAiMessage = document.createElement('div');
-        tempAiMessage.className = 'message ai-message';
-        tempAiMessage.innerHTML = `
-            <div class="message-content">
-                <p>思考中 <span class="candy-loading">🍬</span></p>
-            </div>
-        `;
-        chatMessages.appendChild(tempAiMessage);
+        // 深度思考模式下，显示动态思考提示
+        if (deepThinkingMode) {
+            startThinkingAnimation();
+        } else {
+            const tempAiMessage = document.createElement('div');
+            tempAiMessage.className = 'message ai-message';
+            tempAiMessage.innerHTML = `
+                <div class="message-content">
+                    <p>思考中 <span class="candy-loading">🍬</span></p>
+                </div>
+            `;
+            chatMessages.appendChild(tempAiMessage);
+        }
 
         let finalUserInput = userInput;
         if (contextMode) {
@@ -605,6 +626,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const decoder = new TextDecoder();
             let aiResponseText = "";
             let done = false;
+            
+            // 创建AI回复消息元素
+            let aiMessageElement;
+            
+            if (!deepThinkingMode) {
+                // 如果不是深度思考模式，使用已创建的消息元素
+                aiMessageElement = document.querySelector('.ai-message:last-child');
+            }
+            
             while (!done) {
                 const { value, done: doneReading } = await reader.read();
                 done = doneReading;
@@ -619,11 +649,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             aiResponseText += newText;
                             const modifiedResponse = replaceAIResponse(aiResponseText);
                             if (modifiedResponse.trim() !== "") {
-                                tempAiMessage.innerHTML = `
-                                    <div class="message-content">
-                                        <p>${modifiedResponse}</p>
-                                    </div>
-                                `;
+                                if (deepThinkingMode) {
+                                    // 深度思考模式，停止思考动画并创建新消息
+                                    stopThinkingAnimation();
+                                    if (!aiMessageElement) {
+                                        aiMessageElement = document.createElement('div');
+                                        aiMessageElement.className = 'message ai-message';
+                                        aiMessageElement.innerHTML = `<div class="message-content"><p>${modifiedResponse}</p></div>`;
+                                        chatMessages.appendChild(aiMessageElement);
+                                    } else {
+                                        aiMessageElement.innerHTML = `<div class="message-content"><p>${modifiedResponse}</p></div>`;
+                                    }
+                                } else {
+                                    // 非深度思考模式，更新现有消息
+                                    aiMessageElement.innerHTML = `<div class="message-content"><p>${modifiedResponse}</p></div>`;
+                                }
                                 // 自动滚动到最新消息
                                 chatMessages.scrollTop = chatMessages.scrollHeight;
                             }
@@ -634,11 +674,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // 如果开启了深度思考模式，进行二次审阅
+            // 如果开启了深度思考模式，确保停止动画
             if (deepThinkingMode) {
-                // 不需要进行二次审阅，因为已经使用了deepseek-reasoner模型
+                stopThinkingAnimation();
                 // 这里可以添加一些视觉反馈，表明使用了深度思考模式
-                tempAiMessage.querySelector('.message-content p').innerHTML += `<small class="model-tag">深度思考模式</small>`;
+                if (aiMessageElement) {
+                    aiMessageElement.querySelector('.message-content p').innerHTML += `<small class="model-tag">深度思考模式</small>`;
+                }
             }
 
             currentChat.messages.push({
@@ -649,9 +691,20 @@ document.addEventListener('DOMContentLoaded', function() {
             showThinkingTime(Date.now() - thinkingStartTime);
         } catch (error) {
             console.error('[错误] AI响应失败:', error);
-            console.log('[调试] 错误类型:', error.name);
-            console.log('[调试] 错误信息:', error.message);
-            console.log('[调试] 错误栈:', error.stack);
+            // 停止思考动画
+            if (deepThinkingMode) {
+                stopThinkingAnimation();
+            }
+            
+            let errorMessageElement;
+            if (deepThinkingMode) {
+                errorMessageElement = document.createElement('div');
+                errorMessageElement.className = 'message ai-message';
+                chatMessages.appendChild(errorMessageElement);
+            } else {
+                errorMessageElement = document.querySelector('.ai-message:last-child');
+            }
+            
             let errorMessage = '服务器繁忙请稍后再试';
             if (error.name === 'AbortError') {
                 errorMessage = '请求超时，请检查网络连接';
@@ -660,7 +713,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (error.message.includes('429')) {
                 errorMessage = '请求过于频繁，请稍后再试';
             }
-            tempAiMessage.innerHTML = `
+            
+            errorMessageElement.innerHTML = `
                 <div class="message-content">
                     <p>${errorMessage}</p>
                     <div style="font-size:12px;color:#999;margin-top:8px">
@@ -684,8 +738,66 @@ document.addEventListener('DOMContentLoaded', function() {
             retryButton.onclick = () => {
                 getAIResponse(userInput);
             };
-            tempAiMessage.querySelector('.message-content').appendChild(retryButton);
+            errorMessageElement.querySelector('.message-content').appendChild(retryButton);
             showThinkingTime(Date.now() - thinkingStartTime);
+        }
+    }
+
+    // 添加AI回复内容替换功能
+    function replaceAIResponse(text) {
+        // 处理代码块
+        const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+        let formattedText = text.replace(codeBlockRegex, (match, language, code) => {
+            // 对代码内容进行HTML转义
+            const escapedCode = code.trim()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            return `<div class="code-block">
+                <div class="code-header">
+                    <span class="code-language">${language || 'plaintext'}</span>
+                    <button class="copy-button" onclick="copyCode(this)">复制代码</button>
+                </div>
+                <pre><code class="${language}">${escapedCode}</code></pre>
+            </div>`;
+        });
+        
+        // 处理 ## 加粗 ## 格式
+        formattedText = formattedText.replace(/##(.*?)##/g, '<strong>$1</strong>');
+        
+        // 处理普通文本的换行
+        formattedText = formattedText.replace(/\n/g, '<br>');
+        
+        // 处理原有的加粗文本
+        formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        return formattedText;
+    }
+
+    // 显示思考时间
+    function showThinkingTime(milliseconds) {
+        const seconds = (milliseconds / 1000).toFixed(2);
+        const lastMessage = chatMessages.lastElementChild;
+        if (lastMessage && lastMessage.classList.contains('ai-message')) {
+            const prevTimeDisplay = document.querySelector('.thinking-duration');
+            if (prevTimeDisplay) prevTimeDisplay.remove();
+            const timeDisplay = document.createElement('div');
+            timeDisplay.className = 'thinking-duration';
+            timeDisplay.textContent = `思考用时：${seconds}秒`;
+            timeDisplay.style.cssText = `
+                color: #999;
+                font-size: 12px;
+                text-align: left;
+                padding-left: 20px;
+                margin-top: 5px;
+                margin-bottom: 10px;
+                opacity: 0.7;
+                display: block;
+                width: 100%;
+            `;
+            lastMessage.parentNode.insertBefore(timeDisplay, lastMessage.nextSibling);
         }
     }
 
